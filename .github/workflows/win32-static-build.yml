@@ -1,0 +1,58 @@
+name: Build luasocket for Win32 static
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout luasocket
+        uses: actions/checkout@v4
+        with:
+          repository: fiendish/luasocket
+          path: luasocket
+          submodules: recursive
+
+      - name: Checkout LuaJIT
+        uses: actions/checkout@v4
+        with:
+          repository: fiendish/LuaJIT
+          ref: v2.1
+          path: luasocket/LuaJIT
+          submodules: recursive
+
+      - name: Download prebuilt lua51.lib
+        working-directory: luasocket
+        run: |
+          Invoke-WebRequest 'https://github.com/fiendish/LuaJIT-build/releases/download/latest/lua51.lib' -OutFile 'lua51.lib'
+
+      - name: Set up MSVC x86 build environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
+      - name: Build luasocket
+        working-directory: luasocket
+        run: |
+        
+
+      - name: Create or update "latest" release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest
+          files: luasocket/core.dll
+          prerelease: false
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
