@@ -44,13 +44,18 @@ jobs:
       - name: Build luasocket
         working-directory: luasocket
         run: |
-          # Build using the makefile with win32 platform and LuaJIT, using static runtime
-          nmake -f src/makefile PLAT=win32 LUAV=5.1 LUAPREFIX_win32=..\luajit LUAINC_win32=..\LuaJIT\src LUALIB_win32=..\lua51.lib CC_win32="cl /MT /O1 /Os /DWIN32 /DNDEBUG /D_WINDOWS /D_USRDLL"
+          # Debug: Check if LuaJIT headers exist
+          Write-Host "Checking LuaJIT headers..."
+          Get-ChildItem "LuaJIT\src\*.h" | Select-Object Name
           
-          # Copy built DLLs to expected locations (flexible versioning)
-          Copy-Item "src\socket-*.dll" "core.dll" -Force
-          Copy-Item "src\mime-*.dll" "mime.dll" -Force
-
+          # Build using MSBuild with paths passed directly as properties
+          $luaIncPath = (Resolve-Path "LuaJIT\src").Path
+          $luaLibPath = (Resolve-Path ".").Path
+          Write-Host "LUAINC: $luaIncPath"
+          Write-Host "LUALIB: $luaLibPath"
+          
+          msbuild luasocket.sln /p:PlatformToolset=v143 /p:Configuration=Release /p:Platform=Win32 /p:RuntimeLibrary=MultiThreaded /p:LUAINC="$luaIncPath" /p:LUALIB="$luaLibPath" /p:LUALIBNAME="lua51.lib"
+          
       - name: Create directory structure
         working-directory: luasocket
         run: |
@@ -63,12 +68,12 @@ jobs:
           Move-Item "src\socket.lua" "lua\socket.lua" -Force
           Move-Item "src\ltn12.lua" "lua\ltn12.lua" -Force
           
-          # Move core.dll and remaining .lua files to socket folder
-          Move-Item "core.dll" "socket\core.dll" -Force
+          # Move socket core.dll and remaining .lua files to socket folder
+          Move-Item "Release\socket\core.dll" "socket\core.dll" -Force
           Move-Item "src\*.lua" "socket\" -Force
           
-          # Move mime.dll to mime folder as core.dll
-          Move-Item "mime.dll" "mime\core.dll" -Force
+          # Move mime core.dll to mime folder
+          Move-Item "Release\mime\core.dll" "mime\core.dll" -Force
 
       - name: Create release package
         working-directory: luasocket
